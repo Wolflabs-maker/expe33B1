@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WOLFSTATION | Expedition 33 (B1)</title>
+    <!-- Tailwind CSS with "WOLFSTATION HUD" Palette Configured -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'wolf-bg': '#07090f', /* Deep dark space/hud background */
+                        'wolf-surface': '#111625',
+                        'wolf-surface-hover': '#1e2640',
+                        'wolf-cyan': '#00e5ff', /* Neon tech cyan */
+                        'wolf-cyan-hover': '#00b8cc',
+                        'wolf-purple': '#7000ff', /* Magic/Obscur purple */
+                        'wolf-text-base': '#94a3b8',
+                        'wolf-text-highlight': '#f8fafc',
+                        'wolf-alert': '#ff2a2a'
+                    },
+                    fontFamily: {
+                        'sans': ['Montserrat', 'sans-serif'],
+                        'mono': ['Space Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --wolf-bg: #07090f;
+            --wolf-surface: #111625;
+            --wolf-surface-hover: #1e2640;
+            --wolf-cyan: #00e5ff;
+            --wolf-purple: #7000ff;
+            --wolf-text: #94a3b8;
+            --wolf-highlight: #ffffff;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--wolf-bg);
+            color: var(--wolf-text);
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            /* Subtle CRT Scanline effect overlay */
+            background-image: linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* Main Structure */
+        .app-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            height: calc(100vh - 90px);
+        }
+
+        .sidebar {
+            width: 250px;
+            background-color: rgba(7, 9, 15, 0.95);
+            border-right: 1px solid rgba(0, 229, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 16px;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .main-view {
+            flex: 1;
+            background: linear-gradient(180deg, #0f1424 0%, #07090f 100%);
+            border-radius: 16px;
+            margin: 12px 12px 0 0;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 229, 255, 0.05);
+            border: 1px solid rgba(0, 229, 255, 0.1);
+        }
+
+        .player-bar {
+            height: 90px;
+            background-color: var(--wolf-surface);
+            border-top: 1px solid rgba(0, 229, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 50;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+        }
+        
+        /* Navigation (HUD Style) */
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px;
+            color: var(--wolf-text);
+            font-weight: 700;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            cursor: pointer;
+            border-radius: 4px;
+            border-left: 2px solid transparent;
+        }
+        .nav-item:hover { color: var(--wolf-highlight); background: rgba(0, 229, 255, 0.05); }
+        .nav-item.active { 
+            color: var(--wolf-cyan); 
+            background: linear-gradient(90deg, rgba(0, 229, 255, 0.15) 0%, transparent 100%); 
+            border-left: 3px solid var(--wolf-cyan); 
+            text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+        }
+
+        /* Glowing Play Button */
+        .play-btn-large {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--wolf-cyan) 0%, #0088ff 100%);
+            color: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.4), inset 0 0 10px rgba(255,255,255,0.5);
+            border: 1px solid rgba(255,255,255,0.4);
+            transform: skewX(-5deg);
+        }
+        .play-btn-large i { transform: skewX(5deg); }
+        .play-btn-large:hover { transform: skewX(-5deg) scale(1.08); box-shadow: 0 0 30px rgba(0, 229, 255, 0.7); }
+
+        /* Tech Confirm Button */
+        .btn-confirm-glow {
+            background-color: transparent;
+            color: var(--wolf-cyan);
+            font-weight: 900;
+            padding: 16px 40px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-size: 16px;
+            letter-spacing: 3px;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.2);
+            border: 2px solid var(--wolf-cyan);
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+            overflow: hidden;
+            font-family: 'Space Mono', monospace;
+        }
+        .btn-confirm-glow::before {
+            content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.4), transparent);
+            transition: all 0.5s ease;
+        }
+        .btn-confirm-glow:hover::before { left: 100%; }
+        .btn-confirm-glow:hover {
+            background-color: var(--wolf-cyan);
+            color: #000;
+            box-shadow: 0 0 30px rgba(0, 229, 255, 0.6);
+            transform: translateY(-2px);
+        }
+        .btn-confirm-glow:disabled {
+            border-color: #333; color: #666; box-shadow: none; transform: none; cursor: not-allowed;
+        }
+        
+        @keyframes pulse-cyan-glow {
+            0% { box-shadow: 0 0 10px rgba(0, 229, 255, 0.2); }
+            50% { box-shadow: 0 0 25px rgba(0, 229, 255, 0.6); }
+            100% { box-shadow: 0 0 10px rgba(0, 229, 255, 0.2); }
+        }
+        .animate-pulse-cyan-glow { animation: pulse-cyan-glow 2s infinite ease-in-out; }
+
+        /* Absolute Success Class */
+        .bg-success-glow {
+            background-color: #00ff88 !important; 
+            color: black !important;
+            border-color: #00ff88 !important;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.6) !important;
+            transition: all 0.3s ease !important;
+        }
+        .bg-success-glow p, .bg-success-glow span, .bg-success-glow div, .bg-success-glow i, .bg-success-glow h3 { 
+            color: black !important; text-shadow: none !important;
+        }
+
+        /* Error Class */
+        .bg-error-glow {
+            background-color: var(--wolf-alert) !important;
+            color: white !important;
+            border-color: var(--wolf-alert) !important;
+            box-shadow: 0 0 30px rgba(255, 42, 42, 0.6) !important;
+        }
+
+        /* Dialogue/Lore Visual Elements */
+        .dialogue-line {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1.4;
+            letter-spacing: 0.02em;
+            transition: all 0.3s ease;
+            cursor: default;
+            font-family: 'Space Mono', monospace;
+        }
+        @media (max-width: 768px) { .dialogue-line { font-size: 1.4rem; } }
+        
+        .dialogue-inactive { color: rgba(255, 255, 255, 0.2); }
+        .dialogue-active { color: var(--wolf-highlight); text-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
+        
+        .dialogue-blank {
+            display: inline-block;
+            min-width: 140px;
+            border-bottom: 3px solid var(--wolf-cyan);
+            color: var(--wolf-cyan);
+            text-align: center;
+            padding: 0 10px;
+            margin: 0 8px;
+            transition: all 0.3s;
+            background: rgba(0, 229, 255, 0.1);
+        }
+        .dialogue-blank.filled {
+            border-bottom-color: var(--wolf-cyan);
+            text-shadow: 0 0 15px rgba(0, 229, 255, 0.8);
+            background: transparent;
+        }
+
+        /* Option Pills Style */
+        .option-pill {
+            background: rgba(17, 22, 37, 0.8);
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            color: var(--wolf-cyan);
+            padding: 14px 32px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Space Mono', monospace;
+            text-transform: uppercase;
+        }
+        .option-pill:hover {
+            background: rgba(0, 229, 255, 0.15);
+            border-color: var(--wolf-cyan);
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.3);
+        }
+        .option-pill.selected {
+            background: var(--wolf-cyan);
+            color: black;
+            border-color: var(--wolf-cyan);
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.6);
+        }
+
+        /* Hide Scrollbar for tabs */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Immersive View for Quests */
+        .immersive-view {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 90px;
+            background: rgba(7, 9, 15, 0.98);
+            backdrop-filter: blur(20px);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            transform: translateY(100%);
+            transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+            border-top: 2px solid var(--wolf-cyan);
+        }
+        .immersive-view.active { transform: translateY(0); }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--wolf-bg); }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 229, 255, 0.3); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--wolf-cyan); }
+
+        /* HUD Progress Bar */
+        .progress-bar { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 0; cursor: pointer; position: relative; border: 1px solid rgba(0, 229, 255, 0.2); }
+        .progress-fill { height: 100%; background: var(--wolf-cyan); width: 0%; transition: width 0.1s linear; box-shadow: 0 0 10px var(--wolf-cyan); }
+        
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Quest Card Glitch effect on hover */
+        .quest-card:hover .quest-icon {
+            animation: glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+            color: var(--wolf-cyan);
+        }
+        @keyframes glitch {
+            0% { transform: translate(0) }
+            20% { transform: translate(-2px, 2px) }
+            40% { transform: translate(-2px, -2px) }
+            60% { transform: translate(2px, 2px) }
+            80% { transform: translate(2px, -2px) }
+            100% { transform: translate(0) }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- MAIN CONTAINER -->
+    <div class="app-container">
+        <!-- SIDEBAR (HUD Menu) -->
+        <nav class="sidebar">
+            <div class="mb-10 px-2 text-white flex items-center gap-3">
+                <div class="w-10 h-10 bg-transparent border-2 border-wolf-cyan flex items-center justify-center text-wolf-cyan font-black text-xl shadow-[0_0_15px_rgba(0,229,255,0.5)] transform rotate-45">
+                    <span class="transform -rotate-45">W</span>
+                </div>
+                <span class="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-wolf-cyan to-wolf-purple">STATION</span>
+            </div>
+            <ul class="space-y-2">
+                <li class="nav-item active"><i class="fa-solid fa-gamepad text-lg w-6 text-center"></i> Dashboard</li>
+                <li class="nav-item"><i class="fa-solid fa-trophy text-lg w-6 text-center"></i> Achievements</li>
+                <li class="nav-item"><i class="fa-solid fa-folder-open text-lg w-6 text-center"></i> Save Data</li>
+            </ul>
+            <div class="mt-8 pt-6 border-t border-wolf-surface-hover">
+                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-wolf-cyan mb-4 px-2">Active Campaigns</p>
+                <ul class="space-y-4 px-2 text-sm font-semibold text-slate-400">
+                    <li class="text-white cursor-pointer transition flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-wolf-cyan shadow-[0_0_8px_#00e5ff]"></div> B1 - Expedition 33</li>
+                    <li class="hover:text-white cursor-pointer transition flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-slate-600"></div> B2 - The Last of Us</li>
+                    <li class="hover:text-white cursor-pointer transition flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-slate-600"></div> A2 - Final Fantasy</li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- MAIN AREA -->
+        <main class="main-view" id="main-dashboard">
+            <!-- Header Game Cover Style -->
+            <div class="p-8 pt-16 flex flex-col md:flex-row items-end gap-8 bg-gradient-to-t from-wolf-bg to-transparent border-b border-wolf-surface-hover">
+                <div class="w-48 h-64 md:w-56 md:h-72 shadow-[0_20px_50px_rgba(112,0,255,0.3)] flex-shrink-0 group relative overflow-hidden bg-slate-900 border border-wolf-purple/50 rounded-sm">
+                    <!-- Game Cover Image -->
+                    <div class="w-full h-full flex flex-col items-center justify-center text-center p-4 bg-cover bg-center bg-blend-overlay bg-slate-900/60 transition-transform duration-700 group-hover:scale-105" style="background-image: url('https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80');">
+                        <span class="text-[10px] font-bold text-wolf-cyan tracking-[0.3em] mb-2 uppercase drop-shadow-md border border-wolf-cyan px-2 py-1 bg-black/50">WOLFSTATION</span>
+                        <h2 class="text-2xl font-black text-white uppercase tracking-tighter shadow-black drop-shadow-lg leading-tight mt-2">CLAIR OBSCUR<br><span class="text-wolf-purple font-serif italic text-3xl">Expedition 33</span></h2>
+                    </div>
+                    <div class="absolute inset-0 bg-wolf-cyan/20 mix-blend-overlay pointer-events-none"></div>
+                    <div class="absolute bottom-0 w-full h-1/2 bg-gradient-to-t from-black to-transparent flex items-end justify-center pb-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span class="text-wolf-cyan font-mono text-xs font-bold tracking-widest uppercase animate-pulse">Press Start</span>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-3 pb-2 w-full">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-mono font-bold tracking-[0.2em] uppercase text-wolf-cyan"><i class="fa-solid fa-crosshairs mr-2"></i> Main Quest • Level B1</span>
+                        <span class="text-xs font-mono text-slate-500">v1.0.4 - Online</span>
+                    </div>
+                    <h1 class="text-5xl md:text-7xl font-black tracking-tighter text-white mb-2 leading-none uppercase" style="text-shadow: 0 0 30px rgba(0, 229, 255, 0.2);">The Cycle of Fate</h1>
+                    <div class="flex items-center gap-4 text-sm font-bold flex-wrap bg-wolf-surface/50 p-3 rounded border border-wolf-surface-hover w-max">
+                        <span class="text-white"><i class="fa-solid fa-book-journal-whills text-wolf-purple mr-2"></i>Lore: Hope vs. Fate</span>
+                        <span class="text-wolf-surface-hover">|</span>
+                        <span class="text-wolf-cyan"><i class="fa-solid fa-bolt mr-2"></i>Grammar: Future Forms (Will / Be Going To)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="px-8 mt-8">
+                <div class="bg-wolf-surface border-l-4 border-wolf-purple p-6 shadow-lg shadow-black/50">
+                    <p class="text-lg md:text-xl text-slate-300 leading-relaxed font-medium">
+                        <span class="text-wolf-cyan font-bold">MISSION BRIEFING:</span> The Paintress wakes up and paints a number. Everyone of that age vanishes. 
+                        In this 25-mission campaign, you will master <span class="text-white font-bold underline decoration-wolf-cyan">Future Tenses</span> to predict the end of the world, express your intentions, and plan the reconstruction of society.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Action Bar -->
+            <div class="px-8 py-8 flex items-center gap-6">
+                <div class="play-btn-large" onclick="startCampaign()">
+                    <i class="fa-solid fa-play ml-1"></i>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-white font-bold uppercase tracking-wider text-sm">Initiate Campaign</span>
+                    <span class="text-wolf-text font-mono text-xs">Estimated completion: 60 mins</span>
+                </div>
+            </div>
+
+            <!-- CATEGORY TABS (Quest Log) -->
+            <div class="px-8 mt-2 border-b border-wolf-surface-hover">
+                <div class="flex gap-4 overflow-x-auto pb-4 scrollbar-hide" id="tabs-container">
+                    <!-- Tabs Injected via JS -->
+                </div>
+            </div>
+
+            <!-- MISSION GRID -->
+            <div class="px-8 pb-24 pt-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="missions-container">
+                    <!-- Cards Injected via JS -->
+                </div>
+            </div>
+        </main>
+
+        <!-- IMMERSIVE MISSION VIEW -->
+        <div class="immersive-view" id="mission-view">
+            <header class="p-6 flex justify-between items-center bg-wolf-surface/80 border-b border-wolf-cyan/20 shadow-lg">
+                <div class="flex items-center gap-5">
+                    <div class="w-14 h-14 bg-wolf-bg border border-wolf-cyan flex items-center justify-center shadow-[0_0_15px_rgba(0,229,255,0.2)]" id="ex-icon-container">
+                        <i class="fa-solid fa-terminal text-wolf-cyan text-2xl" id="ex-header-icon"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-mono font-bold tracking-[0.2em] text-wolf-cyan mb-1" id="ex-subtitle">MODULE TYPE</p>
+                        <h2 class="text-2xl font-bold text-white tracking-wide uppercase" id="ex-title">Mission Title</h2>
+                    </div>
+                </div>
+                <button onclick="abortMission()" class="flex items-center gap-2 px-4 py-2 border border-wolf-alert text-wolf-alert hover:bg-wolf-alert hover:text-white transition uppercase font-bold text-sm tracking-wider font-mono">
+                    <i class="fa-solid fa-power-off"></i> Abort
+                </button>
+            </header>
+
+            <div class="flex-grow flex flex-col p-8 pb-32 overflow-y-auto relative" id="mission-content" style="background: radial-gradient(circle at center, rgba(112,0,255,0.05) 0%, transparent 70%);">
+                <!-- Content Injected via JS -->
+            </div>
+
+            <!-- HUD Feedback Bar -->
+            <div id="feedback-bar" class="absolute bottom-10 left-1/2 transform -translate-x-1/2 w-[90%] max-w-4xl py-4 z-50 flex items-center justify-between px-8 transition-all duration-400 ease-out border-2 opacity-0 translate-y-12 pointer-events-none bg-wolf-bg font-mono">
+                <!-- Feedback Injected -->
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTTOM HUD (Replaces Player) -->
+    <div class="player-bar font-mono text-sm">
+        <div class="flex items-center gap-4 w-1/3">
+            <div class="w-12 h-12 border border-wolf-cyan/50 flex items-center justify-center text-wolf-cyan bg-wolf-cyan/10">
+                <i class="fa-solid fa-shield-halved text-2xl"></i>
+            </div>
+            <div class="flex flex-col">
+                <span class="font-bold text-white tracking-wider">EXPEDITION 33</span>
+                <span class="text-[10px] text-wolf-cyan uppercase">Active Agent</span>
+            </div>
+        </div>
+
+        <div class="flex flex-col items-center justify-center w-1/3 gap-3">
+            <div class="flex items-center gap-6 text-wolf-text">
+                <span class="text-xs">LVL. B1</span>
+                <i class="fa-solid fa-backward-step hover:text-white cursor-pointer transition"></i>
+                <div class="w-10 h-10 border-2 border-wolf-cyan text-wolf-cyan flex items-center justify-center cursor-pointer hover:bg-wolf-cyan hover:text-black transition" onclick="toggleGlobalPlay()">
+                    <i class="fa-solid fa-play ml-0.5" id="global-play-icon"></i>
+                </div>
+                <i class="fa-solid fa-forward-step hover:text-white cursor-pointer transition"></i>
+                <span class="text-xs text-wolf-purple font-bold">LORE</span>
+            </div>
+            <div class="flex items-center gap-3 w-full max-w-md text-xs text-wolf-cyan">
+                <span id="player-time-current">00:00</span>
+                <div class="progress-bar group">
+                    <div class="progress-fill group-hover:bg-white" id="player-progress"></div>
+                </div>
+                <span>60:00</span>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-5 w-1/3 text-wolf-cyan">
+            <i class="fa-solid fa-satellite-dish cursor-pointer transition hover:text-white" title="Comm Link"></i>
+            <i class="fa-solid fa-gear hover:text-white cursor-pointer transition"></i>
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-volume-high"></i>
+                <div class="w-20 h-1 bg-wolf-surface-hover cursor-pointer"><div class="w-3/4 h-full bg-wolf-cyan"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Define the 5 Quests (Categories) based on Future Forms & B1 Game Lore
+        const categories = [
+            { id: 1, name: 'Quest I: The Curse', icon: 'fa-book-skull' },
+            { id: 2, name: 'Quest II: Predictions (Will)', icon: 'fa-eye' },
+            { id: 3, name: 'Quest III: Intentions (Going To)', icon: 'fa-map-location-dot' },
+            { id: 4, name: 'Quest IV: The Journey', icon: 'fa-route' },
+            { id: 5, name: 'Quest V: Reconstruction', icon: 'fa-hammer' }
+        ];
+
+        let currentCategory = 1;
+
+        // Array with 25 B1 Level Missions (Expedition 33 - Future Simple & Be Going To)
+        const modules = [
+            // ACT 1: The Curse (Lore & Context)
+            { act: 1, id: 'm-1', title: 'The Paintress Wakes', desc: 'Read the game lore and decrypt the missing word.', tag: 'Lore Terminal', icon: 'fa-book-open', type: 'dialogue', lines: [ { text: "The Paintress paints a number. Everyone of that age ____.", active: true, target: "vanishes" }, { text: "The cycle repeats.", active: false } ], options: ["vanishes", "sleeps", "flies", "wins"] },
+            { act: 1, id: 'm-2', title: 'Data Scan: Vanish', desc: 'Identify the meaning of the anomaly.', tag: 'Lexicon Scan', icon: 'fa-magnifying-glass', type: 'vocab', question: "What does it mean when someone 'vanishes'?", options: [ { text: "They disappear suddenly and completely.", correct: true }, { text: "They become a monster.", correct: false }, { text: "They level up.", correct: false } ] },
+            { act: 1, id: 'm-3', title: 'Grammar Hack', desc: 'Identify the prediction tense.', tag: 'System Override', icon: 'fa-code', type: 'grammar', question: "Complete the prediction: 'Next year, she ____ paint the number 33.'", options: [ { text: "will", correct: true }, { text: "is going to", correct: false }, { text: "does", correct: false } ] },
+            { act: 1, id: 'm-4', title: 'Threat Assessment', desc: 'Hypothesize an event.', tag: 'Comm Link', icon: 'fa-satellite-dish', type: 'arena', prompt: "If a giant number appeared in the sky today, what would people do?", director: "Use future forms to predict society's reaction.", starters: [ "I think people will...", "The government is going to...", "Everyone will probably..." ] },
+            { act: 1, id: 'm-5', title: 'Expedition Protocol', desc: 'Complete the objective brief.', tag: 'Lore Terminal', icon: 'fa-file-code', type: 'dialogue', lines: [ {text: "Expedition 33 is the last hope.", active: false}, {text: "We ____ stop her.", active: true, target: "will"} ], options: ["will", "do", "are", "have"] },
+
+            // ACT 2: Predictions & Fate (Will / Won't)
+            { act: 2, id: 'm-6', title: 'Core Mechanics: Will', desc: 'Understand the rule of predictions.', tag: 'System Override', icon: 'fa-server', type: 'grammar', question: "We primarily use 'WILL' for...", options: [ {text: "Future predictions based on opinions or beliefs.", correct: true}, {text: "Plans we made yesterday.", correct: false}, {text: "Things happening right now.", correct: false} ] },
+            { act: 2, id: 'm-7', title: 'Negative Variables', desc: 'Construct a negative prediction.', tag: 'System Override', icon: 'fa-shield', type: 'grammar', question: "What is the correct negative form? 'We ____ let her win.'", options: [ {text: "won't", correct: true}, {text: "will not to", correct: false}, {text: "don't will", correct: false} ] },
+            { act: 2, id: 'm-8', title: 'Data Scan: Hopeless', desc: 'Analyze the emotional state.', tag: 'Lexicon Scan', icon: 'fa-heart-crack', type: 'vocab', question: "If a situation is 'hopeless', it means...", options: [ {text: "There is no possibility of success.", correct: true}, {text: "You are very tired.", correct: false}, {text: "You are full of hope.", correct: false} ] },
+            { act: 2, id: 'm-9', title: 'Future Intel', desc: 'Predict the future.', tag: 'Comm Link', icon: 'fa-headset', type: 'arena', prompt: "Make a prediction about the future of gaming in 2050.", director: "Use 'will' or 'won't' to express your vision of the future.", starters: [ "I predict that games will be...", "We won't use controllers because...", "Virtual reality will completely..." ] },
+            { act: 2, id: 'm-10', title: 'A Promise', desc: 'Complete the character dialogue.', tag: 'Lore Terminal', icon: 'fa-comment-dots', type: 'dialogue', lines: [ {text: "Wait for me at the base.", active: false}, {text: "I promise I ____ return.", active: true, target: "will"} ], options: ["will", "am going to", "do", "should"] },
+
+            // ACT 3: Intentions (Be Going To)
+            { act: 3, id: 'm-11', title: 'Core Mechanics: Going To', desc: 'Understand intentional actions.', tag: 'System Override', icon: 'fa-code-branch', type: 'grammar', question: "We use 'BE GOING TO' when...", options: [ {text: "We have already planned or decided to do something.", correct: true}, {text: "We make a sudden decision right now.", correct: false}, {text: "We talk about the past.", correct: false} ] },
+            { act: 3, id: 'm-12', title: 'Environmental Clues', desc: 'Predictions based on evidence.', tag: 'System Override', icon: 'fa-cloud-bolt', type: 'grammar', question: "Look at the dark clouds! It ____ rain.", options: [ {text: "is going to", correct: true}, {text: "will", correct: false}, {text: "goes to", correct: false} ] },
+            { act: 3, id: 'm-13', title: 'Tactical Plan', desc: 'Decrypt the squad orders.', tag: 'Lore Terminal', icon: 'fa-map', type: 'dialogue', lines: [ {text: "Pack your gear.", active: false}, {text: "We ____ leave tomorrow at dawn.", active: true, target: "are going to"} ], options: ["are going to", "will", "are going", "go to"] },
+            { act: 3, id: 'm-14', title: 'Personal Directives', desc: 'State your actual plans.', tag: 'Comm Link', icon: 'fa-user-astronaut', type: 'arena', prompt: "What are you GOING TO do next weekend?", director: "Use 'be going to' for plans you have already made.", starters: [ "Next weekend, I am going to...", "My friends and I are going to...", "I'm not going to..." ] },
+            { act: 3, id: 'm-15', title: 'Data Scan: Break the Cycle', desc: 'Understand the main objective.', tag: 'Lexicon Scan', icon: 'fa-arrows-spin', type: 'vocab', question: "To 'break the cycle' means...", options: [ {text: "To stop a repeating pattern of negative events.", correct: true}, {text: "To fix a broken bicycle.", correct: false}, {text: "To run in circles.", correct: false} ] },
+
+            // ACT 4: The Journey
+            { act: 4, id: 'm-16', title: 'Plan vs Prediction', desc: 'Differentiate the forms.', tag: 'System Override', icon: 'fa-scale-balanced', type: 'grammar', question: "Which form is better? 'I think the final boss ____ be very difficult.'", options: [ {text: "will (It's an opinion/prediction)", correct: true}, {text: "is going to (It's a plan)", correct: false}, {text: "is (It's a fact)", correct: false} ] },
+            { act: 4, id: 'm-17', title: 'Pathfinder', desc: 'Decrypt the route.', tag: 'Lore Terminal', icon: 'fa-compass', type: 'dialogue', lines: [ {text: "They have a map.", active: false}, {text: "They ____ travel through the dark forest.", active: true, target: "are going to"} ], options: ["are going to", "will", "going to", "travels"] },
+            { act: 4, id: 'm-18', title: 'Data Scan: Trail', desc: 'Learn exploration vocab.', tag: 'Lexicon Scan', icon: 'fa-shoe-prints', type: 'vocab', question: "A 'trail' in an expedition is...", options: [ {text: "A path or track through a wild area.", correct: true}, {text: "A large spaceship.", correct: false}, {text: "A powerful weapon.", correct: false} ] },
+            { act: 4, id: 'm-19', title: 'Class Selection', desc: 'Choose your role.', tag: 'Comm Link', icon: 'fa-dragon', type: 'arena', prompt: "Imagine you are joining Expedition 33. What RPG class are you GOING TO play? (Mage, Warrior, Healer...)", director: "State your plan and why you chose it.", starters: [ "I am going to play as a...", "I chose this because I want to...", "I am going to help the team by..." ] },
+            { act: 4, id: 'm-20', title: 'Ultimate Consequence', desc: 'State the final fate.', tag: 'Lore Terminal', icon: 'fa-skull', type: 'dialogue', lines: [ {text: "If we fail this mission,", active: false}, {text: "the world ____ end.", active: true, target: "will"} ], options: ["will", "is going to", "does", "end"] },
+
+            // ACT 5: Reconstruction (From PDF)
+            { act: 5, id: 'm-21', title: 'Post-Mission Protocol', desc: 'State immediate intentions.', tag: 'System Override', icon: 'fa-bed', type: 'grammar', question: "Complete: 'After the mission, the first thing we ____ do is rest.'", options: [ {text: "are going to", correct: true}, {text: "will", correct: false}, {text: "going to", correct: false} ] },
+            { act: 5, id: 'm-22', title: 'Long-term Needs', desc: 'Predicting future requirements.', tag: 'System Override', icon: 'fa-city', type: 'grammar', question: "Complete: 'To build a better future, we ____ need help.'", options: [ {text: "will", correct: true}, {text: "are going to", correct: false}, {text: "are needing", correct: false} ] },
+            { act: 5, id: 'm-23', title: 'Vision of the Future', desc: 'Setting the ultimate goal.', tag: 'System Override', icon: 'fa-eye', type: 'grammar', question: "Complete: 'My long-term plan ____ be to rebuild the city.'", options: [ {text: "will", correct: true}, {text: "is going to", correct: false}, {text: "is", correct: false} ] },
+            { act: 5, id: 'm-24', title: 'The Reconstruction Protocol', desc: 'Imagine the victory.', tag: 'Comm Link', icon: 'fa-hammer', type: 'arena', prompt: "Imagine your expedition succeeds. What are the first three things you are GOING TO do to rebuild society?", director: "Use 'going to' for your concrete plans.", starters: [ "First, I am going to...", "Then, we are going to build...", "Finally, the people are going to..." ] },
+            { act: 5, id: 'm-25', title: 'Mission Debrief', desc: 'Final reflection log.', tag: 'Comm Link', icon: 'fa-flag-checkered', type: 'arena', prompt: "Mission accomplished, agent. How WILL you use this knowledge in your next English mission?", director: "Use 'will' to predict your future success with English.", starters: [ "In my next conversation, I will...", "I will remember to use...", "I am going to practice by..." ] }
+        ];
+
+        let currentModuleIndex = 0;
+        let isPlaying = false;
+        let progressInterval;
+        let selectedDialogueWord = null;
+        let currentDialogueLineIndex = 0;
+
+        function renderTabs() {
+            const tabsContainer = document.getElementById('tabs-container');
+            tabsContainer.innerHTML = categories.map(cat => `
+                <button onclick="selectCategory(${cat.id})" class="nav-item ${currentCategory === cat.id ? 'active' : ''} flex-shrink-0 px-6 py-3 font-bold text-xs transition-all duration-300 border border-wolf-surface-hover">
+                    <i class="fa-solid ${cat.icon} mr-2"></i> ${cat.name}
+                </button>
+            `).join('');
+        }
+
+        function selectCategory(id) {
+            currentCategory = id;
+            renderTabs();
+            renderMissions();
+        }
+
+        function renderMissions() {
+            const container = document.getElementById('missions-container');
+            
+            const filteredHtml = modules.map((mod, index) => {
+                if (mod.act !== currentCategory) return '';
+
+                const isCompleted = mod.completed;
+                const borderClass = isCompleted ? 'border-[#00ff88]' : 'border-wolf-surface-hover hover:border-wolf-cyan/50';
+                const iconBgClass = isCompleted ? 'bg-[#00ff88] text-black' : 'bg-wolf-bg text-wolf-cyan group-hover:bg-wolf-cyan group-hover:text-black';
+                const statusTag = isCompleted ? '<span class="text-[#00ff88] text-[10px] uppercase font-bold tracking-widest">[ CLEARED ]</span>' : '<span class="text-wolf-text text-[10px] uppercase font-bold tracking-widest">[ PENDING ]</span>';
+                
+                return `
+                <div class="quest-card bg-wolf-surface/60 backdrop-blur-sm border-l-4 ${borderClass} border-t border-r border-b border-wolf-surface-hover p-6 cursor-pointer transition-all duration-300 group flex flex-col h-full shadow-lg relative overflow-hidden" onclick="startMission(${index})">
+                    
+                    <!-- Tech overlay grid -->
+                    <div class="absolute inset-0 bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVQIW2NkYGD4z8DAwMgAI0AMDA4wBBoEFVAAAAAASUVORK5CYII=')] opacity-10 pointer-events-none"></div>
+
+                    <div class="flex justify-between items-start mb-4 relative z-10">
+                        <div class="w-12 h-12 quest-icon ${iconBgClass} flex items-center justify-center text-xl transition-all shadow-md border border-wolf-cyan/30">
+                            <i class="fa-solid ${mod.icon}"></i>
+                        </div>
+                        ${statusTag}
+                    </div>
+                    
+                    <h3 class="text-white font-bold text-xl mb-2 font-mono uppercase tracking-wide relative z-10">${mod.title}</h3>
+                    <p class="text-slate-400 text-sm mb-8 flex-grow leading-relaxed relative z-10">${mod.desc}</p>
+                    
+                    <div class="flex justify-between items-center mt-auto pt-4 border-t border-wolf-surface-hover relative z-10">
+                        <span class="text-[10px] font-bold text-wolf-cyan font-mono uppercase tracking-widest px-2 py-1 bg-wolf-cyan/10 border border-wolf-cyan/20">${mod.tag}</span>
+                        <div class="text-wolf-cyan opacity-0 group-hover:opacity-100 transition-opacity font-mono text-xs uppercase tracking-widest flex items-center">
+                            Launch <i class="fa-solid fa-arrow-right ml-2"></i>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            container.innerHTML = filteredHtml;
+        }
+
+        function toggleGlobalPlay() {
+            const icon = document.getElementById('global-play-icon');
+            const progress = document.getElementById('player-progress');
+            const timeDisplay = document.getElementById('player-time-current');
+            
+            isPlaying = !isPlaying;
+            
+            if (isPlaying) {
+                icon.classList.remove('fa-play');
+                icon.classList.add('fa-pause');
+                
+                let width = parseFloat(progress.style.width) || 0;
+                let seconds = 0;
+                
+                progressInterval = setInterval(() => {
+                    width += 0.05;
+                    seconds += 0.15; 
+                    if (width > 100) width = 0;
+                    progress.style.width = width + '%';
+                    
+                    const m = Math.floor(seconds / 60);
+                    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+                    timeDisplay.innerText = `${m}:${s}`;
+                }, 100);
+            } else {
+                icon.classList.remove('fa-pause');
+                icon.classList.add('fa-play');
+                clearInterval(progressInterval);
+            }
+        }
+
+        function startCampaign() {
+            selectCategory(1);
+            startMission(0);
+            if(!isPlaying) toggleGlobalPlay();
+        }
+
+        function startMission(index) {
+            currentModuleIndex = index;
+            const module = modules[index];
+            
+            document.getElementById('ex-subtitle').innerText = module.tag;
+            document.getElementById('ex-title').innerText = module.title;
+            document.getElementById('ex-header-icon').className = `fa-solid ${module.icon} text-wolf-cyan text-2xl`;
+            
+            document.getElementById('mission-view').classList.add('active');
+            
+            renderQuestion();
+        }
+
+        function abortMission() {
+            document.getElementById('mission-view').classList.remove('active');
+            hideFeedback();
+        }
+
+        function nextMission() {
+            if(currentModuleIndex + 1 < modules.length) {
+                const nextIndex = currentModuleIndex + 1;
+                const nextAct = modules[nextIndex].act;
+                
+                if (currentCategory !== nextAct) {
+                    selectCategory(nextAct);
+                }
+                
+                startMission(nextIndex);
+            } else {
+                abortMission();
+            }
+        }
+
+        function renderQuestion() {
+            const module = modules[currentModuleIndex];
+            const content = document.getElementById('mission-content');
+            content.innerHTML = '';
+            hideFeedback();
+
+            if (module.type === 'dialogue') renderDialogueTerminal(module);
+            if (module.type === 'vocab' || module.type === 'grammar') renderSystemOverride(module);
+            if (module.type === 'arena') renderCommLink(module);
+        }
+
+        // --- HUD TYPE: DIALOGUE TERMINAL (Lyrics style) ---
+        function renderDialogueTerminal(module) {
+            selectedDialogueWord = null;
+            currentDialogueLineIndex = module.lines.findIndex(l => l.active && !l.solved);
+            
+            if (currentDialogueLineIndex === -1) {
+                finishMission();
+                return;
+            }
+
+            const activeLine = module.lines[currentDialogueLineIndex];
+            const content = document.getElementById('mission-content');
+            
+            let linesHtml = module.lines.map((line, idx) => {
+                if (line.active) {
+                    const parts = line.text.split('____');
+                    if (line.solved) {
+                        return `<div class="dialogue-line dialogue-inactive my-4">> ${parts[0]} <span class="text-wolf-cyan drop-shadow-md">${line.target}</span> ${parts[1] || ''}</div>`;
+                    } else if (idx === currentDialogueLineIndex) {
+                        return `
+                            <div class="dialogue-line dialogue-active my-4 scale-105 origin-left border-l-4 border-wolf-cyan pl-4 bg-wolf-cyan/5">
+                                > ${parts[0]} <span id="dialogue-blank" class="dialogue-blank">...</span> ${parts[1] || ''}
+                            </div>
+                        `;
+                    } else {
+                        return `<div class="dialogue-line dialogue-inactive my-4 opacity-40">> ${parts[0]} ____ ${parts[1] || ''}</div>`;
+                    }
+                } else {
+                    return `<div class="dialogue-line dialogue-inactive my-4 opacity-40">> ${line.text}</div>`;
+                }
+            }).join('');
+
+            let optionsHtml = module.options.map(opt => `
+                <button onclick="selectDialogueOption('${opt}')" class="option-pill" id="opt-${opt}">
+                    [ ${opt} ]
+                </button>
+            `).join('');
+
+            content.innerHTML = `
+                <div class="w-full max-w-4xl mx-auto flex flex-col h-full animate-fade-in pt-6">
+                    <p class="text-wolf-cyan text-sm font-bold uppercase tracking-[0.2em] mb-8 font-mono"><i class="fa-solid fa-terminal mr-2"></i> Decrypt the data log</p>
+                    <div class="flex-grow flex flex-col justify-center font-mono">
+                        ${linesHtml}
+                    </div>
+                    
+                    <div class="mt-auto pt-10 pb-4 flex flex-col items-center gap-8 border-t border-wolf-cyan/20">
+                        <div class="flex flex-wrap justify-center gap-4">
+                            ${optionsHtml}
+                        </div>
+                        <button id="btn-confirm-dialogue" onclick="confirmDialogue()" disabled class="btn-confirm-glow animate-pulse-cyan-glow mt-4">
+                            <i class="fa-solid fa-unlock-keyhole"></i> Initialize
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function selectDialogueOption(word) {
+            selectedDialogueWord = word;
+            const blank = document.getElementById('dialogue-blank');
+            blank.innerText = word;
+            blank.classList.add('filled');
+            
+            const module = modules[currentModuleIndex];
+            module.options.forEach(opt => {
+                const el = document.getElementById(`opt-${opt}`);
+                if(el) el.classList.remove('selected');
+            });
+            document.getElementById(`opt-${word}`).classList.add('selected');
+            
+            document.getElementById('btn-confirm-dialogue').disabled = false;
+        }
+
+        function confirmDialogue() {
+            const module = modules[currentModuleIndex];
+            const activeLine = module.lines[currentDialogueLineIndex];
+            
+            if (selectedDialogueWord === activeLine.target) {
+                document.getElementById('dialogue-blank').classList.add('bg-success-glow');
+                document.getElementById(`opt-${selectedDialogueWord}`).classList.add('bg-success-glow');
+                
+                showHUDFeedback("success", "Decryption Successful. Sequence accepted.", "advanceDialogue()");
+            } else {
+                showHUDFeedback("error", "Error: Sequence mismatched. Retry.");
+                setTimeout(hideFeedback, 3000); 
+            }
+        }
+
+        function advanceDialogue() {
+            hideFeedback();
+            const module = modules[currentModuleIndex];
+            const activeLine = module.lines[currentDialogueLineIndex];
+            activeLine.solved = true;
+            renderDialogueTerminal(module); 
+        }
+
+        // --- HUD TYPE: SYSTEM OVERRIDE (Quiz) ---
+        function renderSystemOverride(module) {
+            let optionsHtml = module.options.map((opt, i) => `
+                <div onclick="selectOverrideOption(${i})" class="bg-wolf-surface/80 border border-wolf-cyan/30 hover:border-wolf-cyan rounded-none p-6 cursor-pointer transition-all duration-300 group flex items-center justify-between shadow-lg" id="quiz-opt-${i}">
+                    <p class="text-white text-lg font-mono uppercase tracking-wide group-hover:text-wolf-cyan transition-colors">> ${opt.text}</p>
+                    <div class="w-6 h-6 border-2 border-wolf-text group-hover:border-wolf-cyan flex items-center justify-center transform rotate-45">
+                        <div class="w-3 h-3 bg-wolf-cyan opacity-0 transition-opacity" id="quiz-dot-${i}"></div>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('mission-content').innerHTML = `
+                <div class="w-full max-w-3xl mx-auto mt-12 animate-fade-in flex flex-col h-full">
+                    <div class="text-center mb-12 border-b border-wolf-cyan/20 pb-8">
+                        <div class="w-20 h-20 bg-wolf-bg border border-wolf-cyan/50 flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(0,229,255,0.2)]">
+                            <i class="fa-solid ${module.icon} text-4xl text-wolf-cyan"></i>
+                        </div>
+                        <h3 class="text-2xl md:text-3xl font-bold text-white leading-tight font-mono">${module.question}</h3>
+                    </div>
+                    
+                    <div class="space-y-4 w-full" id="quiz-options-container">
+                        ${optionsHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        function selectOverrideOption(index) {
+            const module = modules[currentModuleIndex];
+            const option = module.options[index];
+            const container = document.getElementById('quiz-options-container');
+            
+            container.style.pointerEvents = 'none';
+            
+            const selectedEl = document.getElementById(`quiz-opt-${index}`);
+            const dot = document.getElementById(`quiz-dot-${index}`);
+            
+            dot.style.opacity = '1';
+
+            if (option.correct) {
+                selectedEl.classList.add('bg-success-glow'); 
+                showHUDFeedback("success", "Override Authorized. Data secured.", "finishMission()");
+            } else {
+                selectedEl.classList.add('bg-error-glow');
+                dot.classList.replace('bg-wolf-cyan', 'bg-white');
+                selectedEl.querySelector('.border-2').classList.replace('group-hover:border-wolf-cyan', 'border-white');
+                
+                showHUDFeedback("error", "Access Denied. Review mission parameters.");
+                
+                setTimeout(() => {
+                    hideFeedback();
+                    container.style.pointerEvents = 'auto';
+                    selectedEl.classList.remove('bg-error-glow');
+                    dot.classList.replace('bg-white', 'bg-wolf-cyan');
+                    dot.style.opacity = '0';
+                    selectedEl.querySelector('.border-2').classList.replace('border-white', 'group-hover:border-wolf-cyan');
+                }, 3000);
+            }
+        }
+
+        // --- HUD TYPE: COMM LINK (Speaking Arena) ---
+        function renderCommLink(module) {
+            let startersHtml = module.starters.map(s => `
+                <div class="bg-wolf-bg border-l-2 border-wolf-cyan p-4 shadow-[0_4px_15px_rgba(0,0,0,0.5)] hover:bg-wolf-surface transition-colors font-mono">
+                    <p class="text-wolf-cyan font-bold text-sm">> "${s}"</p>
+                </div>
+            `).join('');
+
+            document.getElementById('mission-content').innerHTML = `
+                <div class="w-full max-w-6xl mx-auto mt-4 animate-fade-in flex flex-col h-full">
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 flex-grow">
+                        <!-- Directives Side -->
+                        <div class="bg-wolf-surface/90 p-8 border border-wolf-cyan/30 relative flex flex-col justify-center shadow-xl">
+                            <div class="absolute top-0 left-0 bg-wolf-cyan text-black text-[10px] font-black px-4 py-1 uppercase tracking-widest">Comm Link Open</div>
+                            
+                            <div class="w-20 h-20 bg-wolf-bg border border-wolf-cyan/50 rounded-full flex items-center justify-center mb-8 mx-auto relative shadow-[0_0_20px_rgba(0,229,255,0.3)]">
+                                <i class="fa-solid fa-microphone-lines text-3xl text-wolf-cyan animate-pulse"></i>
+                            </div>
+
+                            <p class="text-white text-2xl md:text-3xl font-bold leading-tight text-center mb-8 font-mono">"${module.prompt}"</p>
+                            
+                            <div class="mt-auto p-5 bg-wolf-bg border border-wolf-purple/50">
+                                <p class="text-[10px] text-wolf-purple font-black uppercase tracking-widest mb-2"><i class="fa-solid fa-crosshairs mr-2"></i> Directive</p>
+                                <p class="text-sm text-slate-300 font-mono">${module.director}</p>
+                            </div>
+                        </div>
+
+                        <!-- Transmission Side -->
+                        <div class="flex flex-col justify-center gap-6 transition-all duration-500 bg-wolf-bg p-8 border border-wolf-surface-hover" id="podcast-student-side">
+                            <div class="flex items-center gap-3 mb-2 bg-wolf-surface w-max px-4 py-2 border border-wolf-surface-hover">
+                                <div class="w-3 h-3 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)]"></div>
+                                <p class="text-xs text-slate-300 font-mono font-bold uppercase tracking-widest">Transmitting...</p>
+                            </div>
+                            
+                            <p class="text-slate-400 text-sm mb-2 font-mono">Utilize provided dialogue options to structure your transmission:</p>
+                            
+                            <div class="space-y-3 mb-6 flex-grow flex flex-col justify-center">
+                                ${startersHtml}
+                            </div>
+
+                            <button onclick="finishCommLink()" class="btn-confirm-glow animate-pulse-cyan-glow w-full justify-center py-4 text-lg mt-auto">
+                                <i class="fa-solid fa-satellite-dish text-xl"></i> End Transmission
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function finishCommLink() {
+            const studentSide = document.getElementById('podcast-student-side');
+            studentSide.classList.add('bg-success-glow');
+            studentSide.classList.remove('bg-wolf-bg', 'border-wolf-surface-hover');
+            
+            const btn = studentSide.querySelector('button');
+            btn.innerHTML = `<i class="fa-solid fa-check text-2xl"></i> Transmission Sent`;
+            btn.classList.remove('text-wolf-cyan', 'animate-pulse-cyan-glow', 'border-wolf-cyan');
+            btn.classList.add('bg-black', 'text-white', 'border-black');
+            
+            showHUDFeedback("success", "Transmission received. Excellent strategy, Agent.", "finishMission()");
+        }
+
+        // --- MISSION COMPLETE ---
+        function finishMission() {
+            hideFeedback();
+            const isLast = currentModuleIndex + 1 >= modules.length;
+            const btnText = isLast ? "Complete Campaign" : "Next Mission <i class='fa-solid fa-forward-step ml-2'></i>";
+            const btnAction = isLast ? "abortMission()" : "nextMission()";
+
+            document.getElementById('mission-content').innerHTML = `
+                <div class="text-center animate-fade-in flex flex-col items-center justify-center h-full">
+                    <div class="w-32 h-32 bg-transparent border-4 border-[#00ff88] flex items-center justify-center mb-8 shadow-[0_0_50px_rgba(0,255,136,0.3)] transform rotate-45">
+                        <i class="fa-solid fa-check text-6xl text-[#00ff88] transform -rotate-45"></i>
+                    </div>
+                    <h2 class="text-4xl md:text-5xl font-black text-white mb-4 tracking-[0.2em] uppercase font-mono">Mission Cleared</h2>
+                    <p class="text-lg text-wolf-cyan mb-12 max-w-md mx-auto font-mono">You've successfully mastered this Expedition 33 (B1) module.</p>
+                    <button onclick="${btnAction}" class="btn-confirm-glow shadow-xl px-12 py-5" style="border-color: #00ff88; color: #00ff88; box-shadow: 0 0 20px rgba(0,255,136,0.4);">
+                        ${btnText}
+                    </button>
+                </div>
+            `;
+            
+            modules[currentModuleIndex].completed = true;
+            renderMissions(); 
+        }
+
+        // --- HUD FEEDBACK SYSTEM ---
+        function showHUDFeedback(type, message, okAction = null) {
+            const bar = document.getElementById('feedback-bar');
+            
+            let bgClass = "bg-[#00ff88] text-black border-[#00ff88]";
+            let icon = "fa-check-circle";
+            let actionBtn = "";
+            
+            if (type === "error") { 
+                bgClass = "bg-wolf-alert text-white border-wolf-alert"; 
+                icon = "fa-triangle-exclamation"; 
+            }
+
+            if (okAction) {
+                actionBtn = `<button onclick="${okAction}" class="ml-auto bg-black text-white px-8 py-2 font-bold uppercase tracking-widest text-sm border border-white/20 hover:bg-white hover:text-black transition-colors font-mono">Execute <i class="fa-solid fa-terminal ml-2"></i></button>`;
+            }
+            
+            bar.className = `absolute bottom-10 left-1/2 transform -translate-x-1/2 w-[90%] max-w-4xl py-4 z-50 flex items-center justify-between px-8 transition-all duration-400 ease-out border-2 opacity-100 translate-y-0 ${bgClass} font-mono uppercase tracking-wide`;
+            
+            bar.innerHTML = `
+                <div class="flex items-center justify-start gap-5">
+                    <i class="fa-solid ${icon} text-2xl"></i>
+                    <h4 class="text-sm font-bold">${message}</h4>
+                </div>
+                ${actionBtn}
+            `;
+        }
+
+        function hideFeedback() {
+            const bar = document.getElementById('feedback-bar');
+            bar.classList.remove('opacity-100', 'translate-y-0');
+            bar.classList.add('opacity-0', 'translate-y-12', 'pointer-events-none');
+        }
+
+        window.onload = () => { 
+            // Início da simulação WOLFSTATION
+            console.log("WOLFSTATION SYSTEM ONLINE.");
+            renderTabs();
+            renderMissions(); 
+        };
+    </script>
+</body>
+</html>
